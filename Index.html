@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InfectoQuiz Master - Backup System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --duo-green: #58cc02; --duo-green-dark: #58a700;
+            --duo-red: #ff4b4b; --duo-red-dark: #ea2b2b;
+            --duo-blue: #1cb0f6; --duo-blue-dark: #1899d6;
+            --duo-gray: #e5e5e5; --text: #4b4b4b;
+            --duo-purple: #ce82ff; --duo-purple-dark: #a568cc;
+            --duo-yellow: #ffc800; --duo-yellow-dark: #e5b400;
+        }
+        * { box-sizing: border-box; font-family: 'Nunito', sans-serif; }
+        body { background: #f7f7f7; color: var(--text); margin: 0; display: flex; flex-direction: column; height: 100vh; }
+
+        /* NAV */
+        nav { background: white; padding: 15px; display: flex; justify-content: center; gap: 20px; border-bottom: 2px solid var(--duo-gray); }
+        nav button { border: none; background: none; font-weight: 800; color: #afafaf; cursor: pointer; text-transform: uppercase; padding-bottom: 5px; }
+        nav button.active { color: var(--duo-blue); border-bottom: 3px solid var(--duo-blue); }
+
+        /* VIEWS */
+        .view { display: none; padding: 20px; flex-direction: column; align-items: center; overflow-y: auto; flex: 1; }
+        .view.active { display: flex; }
+
+        /* CARDS & CONTAINERS */
+        .card { background: white; border: 2px solid var(--duo-gray); border-radius: 16px; padding: 20px; width: 100%; max-width: 600px; margin-bottom: 20px; }
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; width: 100%; max-width: 600px; }
+        
+        /* INPUTS */
+        input, textarea, select { width: 100%; padding: 10px; border: 2px solid var(--duo-gray); border-radius: 10px; margin-bottom: 10px; font-family: inherit; }
+        
+        /* BUTTONS */
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 12px; font-weight: 800; cursor: pointer; text-transform: uppercase; color: white; margin-top: 10px; transition: 0.1s; text-align: center; display: inline-block; }
+        .btn-blue { background: var(--duo-blue); border-bottom: 4px solid var(--duo-blue-dark); }
+        .btn-green { background: var(--duo-green); border-bottom: 4px solid var(--duo-green-dark); }
+        .btn-red { background: var(--duo-red); border-bottom: 4px solid var(--duo-red-dark); }
+        .btn-purple { background: var(--duo-purple); border-bottom: 4px solid var(--duo-purple-dark); }
+        .btn-outline { background: white; border: 2px solid var(--duo-gray); border-bottom: 4px solid var(--duo-gray); color: var(--text); }
+        
+        .btn:active:not(:disabled) { transform: translateY(4px); border-bottom-width: 0; margin-top: 14px; }
+        .btn:disabled { background: #ccc; border-bottom-color: #aaa; cursor: not-allowed; transform: none; }
+
+        /* TOPIC BUTTONS */
+        .topic-btn { height: 100px; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 14px; }
+        .topic-count { font-size: 10px; opacity: 0.8; margin-top: 5px; }
+
+        /* QUIZ STYLES */
+        .option-btn { width: 100%; padding: 15px; background: white; border: 2px solid var(--duo-gray); border-bottom: 4px solid var(--duo-gray); border-radius: 12px; margin-bottom: 10px; text-align: left; cursor: pointer; font-weight: 700; display: flex; align-items: center; }
+        .option-num { width: 25px; height: 25px; border: 2px solid #ddd; border-radius: 6px; display: flex; justify-content: center; align-items: center; margin-right: 10px; color: #999; font-size: 14px; }
+        .option-btn.selected { background: #ddf4ff; border-color: var(--duo-blue); color: var(--duo-blue); }
+        .option-btn.selected .option-num { border-color: var(--duo-blue); color: var(--duo-blue); }
+        .option-btn.correct { background: #d7ffb8; border-color: var(--duo-green); color: var(--duo-green-dark); }
+        .option-btn.wrong { background: #ffdfdf; border-color: var(--duo-red); color: var(--duo-red-dark); }
+
+        /* STATS */
+        .stat-box { text-align: center; padding: 15px; border-radius: 12px; flex: 1; }
+        .stat-num { font-size: 24px; font-weight: 900; display: block; }
+        .stat-label { font-size: 12px; text-transform: uppercase; font-weight: 700; opacity: 0.7; }
+
+        /* LOADING & LOG */
+        #loader { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.95); z-index: 2000; justify-content: center; align-items: center; flex-direction: column; text-align: center; }
+        .spinner { border: 5px solid #f3f3f3; border-top: 5px solid var(--duo-blue); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #status-log { font-size: 12px; color: #666; margin-top: 10px; padding: 10px; background: #eee; border-radius: 8px; font-family: monospace; display: none; text-align: left; white-space: pre-wrap; }
+        
+        /* LIST ITEM */
+        .q-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; align-items: center; }
+        .topic-tag { display: inline-block; background: var(--duo-purple); color: white; font-size: 10px; padding: 2px 6px; border-radius: 6px; font-weight: 800; text-transform: uppercase; margin-right: 5px; vertical-align: middle; }
+    </style>
+</head>
+<body>
+
+    <!-- LOADER -->
+    <div id="loader">
+        <div class="spinner"></div>
+        <h2 style="color: var(--duo-blue); margin: 0;">Trabajando...</h2>
+        <p id="loader-text" style="color: #666; max-width: 300px;">Conectando con la IA...</p>
+    </div>
+
+    <!-- NAVIGATION -->
+    <nav>
+        <button onclick="setView('home')" id="nav-home" class="active">Estudiar</button>
+        <button onclick="setView('admin')" id="nav-admin">Editar</button>
+        <button onclick="setView('ai')" id="nav-ai">IA Mágica ✨</button>
+    </nav>
+
+    <!-- VIEW: HOME (MODE SELECTION) -->
+    <div id="view-home" class="view active">
+        <div class="card" style="text-align: center;">
+            <h2 style="margin-top:0;">¿Qué practicamos hoy?</h2>
+            <p style="color: #666;">Tienes <strong id="total-q-home">0</strong> preguntas en tu banco.</p>
+            
+            <button onclick="startSession('random')" class="btn btn-blue" style="width: 100%; font-size: 18px; padding: 20px;">
+                🎲 Practicar Todo (Al Azar)
+            </button>
+        </div>
+
+        <h3 style="color: #999; margin-bottom: 15px; font-size: 14px;">O ELIGE UN TEMA</h3>
+        
+        <div id="topic-grid" class="grid-container">
+            <!-- JS injects topic buttons here -->
+        </div>
+    </div>
+
+    <!-- VIEW: QUIZ SESSION -->
+    <div id="view-quiz" class="view">
+        <div style="width: 100%; max-width: 600px; display:flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+            <button onclick="quitQuiz()" style="font-size:24px; border:none; background:none; cursor:pointer; color:#ccc;">×</button>
+            <div style="flex-grow:1; height: 16px; background: #e5e5e5; border-radius: 10px; overflow:hidden;">
+                <div id="progress" style="width: 0%; height: 100%; background: var(--duo-green); border-radius: 10px; transition: 0.3s;"></div>
+            </div>
+            <span id="q-counter" style="font-weight: bold; color: #ccc;">0/0</span>
+        </div>
+        
+        <div class="card">
+            <div id="quiz-topic" style="text-align: center; font-size: 12px; font-weight: 800; color: var(--duo-purple); text-transform: uppercase; margin-bottom: 5px; display:none;">TEMA</div>
+            <h2 id="quiz-question" style="margin-top:0; text-align: center;">...</h2>
+            <div id="quiz-options"></div>
+        </div>
+        
+        <div id="feedback-area" style="display:none; width: 100%; max-width: 600px; padding: 20px; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 0 rgba(0,0,0,0.1);">
+            <h2 id="feedback-title" style="margin:0 0 10px 0;"></h2>
+            <p id="feedback-text" style="font-size: 16px; line-height: 1.5;"></p>
+            <button onclick="nextQuestion()" class="btn" id="continue-btn">CONTINUAR</button>
+        </div>
+
+        <button id="check-btn" onclick="checkAnswer()" class="btn btn-green" disabled style="display:none; max-width: 600px;">COMPROBAR</button>
+    </div>
+
+    <!-- VIEW: RESULTS -->
+    <div id="view-results" class="view">
+        <div class="card" style="text-align: center;">
+            <h1 style="color: var(--duo-yellow-dark); font-size: 40px; margin: 10px 0;">¡Lección Completa!</h1>
+            
+            <div style="display: flex; gap: 10px; margin: 20px 0;">
+                <div class="stat-box" style="background: #d7ffb8; color: var(--duo-green-dark);">
+                    <span class="stat-num" id="res-correct">0</span>
+                    <span class="stat-label">Correctas</span>
+                </div>
+                <div class="stat-box" style="background: #ffdfdf; color: var(--duo-red-dark);">
+                    <span class="stat-num" id="res-wrong">0</span>
+                    <span class="stat-label">Incorrectas</span>
+                </div>
+            </div>
+
+            <p id="res-msg" style="color: #666;">¡Buen trabajo!</p>
+
+            <button id="btn-retry-wrong" onclick="startSession('retry')" class="btn btn-red" style="width: 100%; display: none;">
+                🔄 Repetir Errores
+            </button>
+            
+            <button onclick="setView('home')" class="btn btn-outline" style="width: 100%;">
+                Volver al Inicio
+            </button>
+        </div>
+    </div>
+
+    <!-- VIEW: ADMIN -->
+    <div id="view-admin" class="view">
+        <div class="card">
+            <h3>📝 Editor Manual</h3>
+            <input type="hidden" id="edit-index">
+            <label style="font-size:12px;font-weight:800;color:#999;">TEMA</label>
+            <input type="text" id="inp-topic" placeholder="Ej: Tuberculosis" style="border-color: var(--duo-purple);">
+            <label style="font-size:12px;font-weight:800;color:#999;">PREGUNTA</label>
+            <textarea id="inp-question" rows="3" placeholder="Escribe la consigna..."></textarea>
+            <div id="options-inputs"></div>
+            <label style="font-size:12px;font-weight:800;color:#999;">JUSTIFICACIÓN</label>
+            <textarea id="inp-justification" rows="2" placeholder="Explicación..."></textarea>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="saveManual()" class="btn btn-blue" style="flex:1;">Guardar</button>
+                <button onclick="clearForm()" class="btn btn-outline" style="flex:1;">Limpiar</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3>Banco de Preguntas</h3>
+                <span class="status-badge status-ok" id="total-count" style="font-weight:800;">0</span>
+            </div>
+            
+            <!-- BACKUP SECTION -->
+            <div style="background: #f0f0f0; padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+                <p style="margin: 0 0 10px 0; font-size: 12px; color: #666; font-weight: bold;">RESPALDO DE DATOS</p>
+                <div style="display:flex; gap:10px;">
+                    <button onclick="exportBackup()" class="btn btn-purple" style="font-size:13px; padding:10px; margin:0; width:50%;">💾 Descargar Copia</button>
+                    <button onclick="triggerImport()" class="btn btn-purple" style="font-size:13px; padding:10px; margin:0; width:50%;">📂 Cargar Copia</button>
+                    <input type="file" id="import-file" style="display:none" onchange="importBackup(this)" accept=".json">
+                </div>
+            </div>
+
+            <div id="questions-list" style="max-height: 400px; overflow-y: auto;"></div>
+        </div>
+        <button onclick="resetAllData()" class="btn btn-red" style="max-width: 600px; margin-top:20px;">⚠️ Borrar Todo</button>
+    </div>
+
+    <!-- VIEW: IA IMPORT -->
+    <div id="view-ai" class="view">
+        <div class="card" style="border: 2px solid var(--duo-blue);">
+            <h2 style="color: var(--duo-blue); margin-top:0;">🤖 Generador IA</h2>
+            
+            <label style="font-size:12px;font-weight:800;color:#999;">TU API KEY</label>
+            <input type="password" id="api-key" value="AIzaSyDQI3MsGsdGWiJjv42rn6Jq6DOSpqLPAJc" placeholder="AIzaSy..." style="background: #f0f8ff;">
+            
+            <label style="font-size:12px;font-weight:800;color:#999; margin-top:10px; display:block;">PEGA TUS APUNTES AQUÍ</label>
+            <textarea id="ai-prompt" rows="8" placeholder="Texto médico para analizar..."></textarea>
+            
+            <button id="ai-btn" type="button" class="btn btn-blue">✨ PROCESAR TEXTO</button>
+            
+            <div id="status-log">Esperando acción...</div>
+
+            <div id="ai-success-msg" style="display:none; margin-top: 15px; text-align: center;">
+                <p style="color: var(--duo-green-dark); font-weight: bold;">¡Éxito! Preguntas generadas.</p>
+                <button onclick="goToAdminWithFilter()" class="btn btn-green">VER PREGUNTAS SUBIDAS ➔</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA STATE ---
+        const DEFAULT_DATA = [
+            {
+                tema: "Demo",
+                pregunta: "¿Cuál es el tratamiento de elección para TBC sensible?",
+                opciones: [
+                    {texto: "Isoniacida sola", correcta: false},
+                    {texto: "Esquema HRZE", correcta: true},
+                    {texto: "Amoxicilina", correcta: false},
+                    {texto: "Corticoides", correcta: false}
+                ],
+                justificacion: "El esquema cuádruple (HRZE) es el estándar."
+            }
+        ];
+
+        let questions = JSON.parse(localStorage.getItem('infectoDB_v5')) || DEFAULT_DATA;
+        
+        // Session State
+        let sessionQuestions = [];
+        let sessionWrongQuestions = []; 
+        let sessionIndex = 0;
+        let sessionScore = { correct: 0, wrong: 0 };
+        let selectedOptIndex = null;
+
+        // --- NAVIGATION & VIEWS ---
+        function setView(viewId) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+            
+            if(viewId === 'home') document.getElementById('nav-home').classList.add('active');
+            else if(viewId === 'admin') document.getElementById('nav-admin').classList.add('active');
+            else if(viewId === 'ai') document.getElementById('nav-ai').classList.add('active');
+
+            document.getElementById('view-' + viewId).classList.add('active');
+            
+            if(viewId === 'home') renderHome();
+            if(viewId === 'admin') loadAdminList();
+        }
+
+        function goToAdminWithFilter() {
+            setView('admin');
+            document.getElementById('ai-btn').style.display = 'block';
+            document.getElementById('ai-success-msg').style.display = 'none';
+            document.getElementById('status-log').style.display = 'none';
+        }
+
+        // --- HOME LOGIC (SELECTION) ---
+        function renderHome() {
+            document.getElementById('total-q-home').innerText = questions.length;
+            const grid = document.getElementById('topic-grid');
+            grid.innerHTML = '';
+
+            const topics = {};
+            questions.forEach(q => {
+                const t = q.tema ? q.tema.trim() : "General";
+                topics[t] = (topics[t] || 0) + 1;
+            });
+
+            Object.keys(topics).forEach(topic => {
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-purple topic-btn';
+                btn.innerHTML = `
+                    <strong>${topic}</strong>
+                    <span class="topic-count">${topics[topic]} preguntas</span>
+                `;
+                btn.onclick = () => startSession('topic', topic);
+                grid.appendChild(btn);
+            });
+
+            if(Object.keys(topics).length === 0) {
+                grid.innerHTML = '<p style="color:#999; grid-column: 1/-1; text-align:center;">No hay temas. Crea preguntas primero.</p>';
+            }
+        }
+
+        // --- SESSION LOGIC ---
+        function startSession(mode, filterValue) {
+            sessionQuestions = [];
+            sessionWrongQuestions = [];
+            sessionScore = { correct: 0, wrong: 0 };
+            sessionIndex = 0;
+
+            if (questions.length === 0) return alert("No hay preguntas en la base de datos.");
+
+            if (mode === 'random') {
+                sessionQuestions = [...questions].sort(() => 0.5 - Math.random());
+            } else if (mode === 'topic') {
+                sessionQuestions = questions.filter(q => (q.tema || "General") === filterValue);
+                sessionQuestions.sort(() => 0.5 - Math.random());
+            } else if (mode === 'retry') {
+                sessionQuestions = [..._tempRetryList]; 
+                sessionQuestions.sort(() => 0.5 - Math.random());
+            }
+
+            if (sessionQuestions.length === 0) return alert("No hay preguntas disponibles para esta selección.");
+
+            setView('quiz');
+            loadQuizQuestion();
+        }
+
+        let _tempRetryList = []; 
+
+        function quitQuiz() {
+            if(confirm("¿Salir de la práctica? Se perderá el progreso actual.")) {
+                setView('home');
+            }
+        }
+
+        // --- QUIZ ENGINE ---
+        function loadQuizQuestion() {
+            const container = document.getElementById('quiz-options');
+            const qTitle = document.getElementById('quiz-question');
+            const qTopic = document.getElementById('quiz-topic');
+            const checkBtn = document.getElementById('check-btn');
+            
+            document.getElementById('feedback-area').style.display = 'none';
+            container.innerHTML = '';
+            checkBtn.style.display = 'block';
+            checkBtn.disabled = true;
+
+            if (sessionIndex >= sessionQuestions.length) {
+                finishSession();
+                return;
+            }
+
+            const q = sessionQuestions[sessionIndex];
+            qTitle.innerText = q.pregunta;
+            
+            if(q.tema) {
+                qTopic.style.display = 'block';
+                qTopic.innerText = q.tema;
+            } else {
+                qTopic.style.display = 'none';
+            }
+            
+            document.getElementById('q-counter').innerText = `${sessionIndex + 1}/${sessionQuestions.length}`;
+            const pct = ((sessionIndex) / sessionQuestions.length) * 100;
+            document.getElementById('progress').style.width = `${pct}%`;
+
+            q.opciones.forEach((opt, idx) => {
+                const btn = document.createElement('div');
+                btn.className = 'option-btn';
+                btn.innerHTML = `<div class="option-num">${idx+1}</div> <span>${opt.texto}</span>`;
+                btn.onclick = () => {
+                    if(document.getElementById('feedback-area').style.display === 'block') return;
+                    selectOption(idx, btn);
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function selectOption(idx, btnElement) {
+            selectedOptIndex = idx;
+            document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+            btnElement.classList.add('selected');
+            document.getElementById('check-btn').disabled = false;
+        }
+
+        function checkAnswer() {
+            const q = sessionQuestions[sessionIndex];
+            const isCorrect = q.opciones[selectedOptIndex].correcta;
+            const opts = document.querySelectorAll('.option-btn');
+            const feedbackArea = document.getElementById('feedback-area');
+            const continueBtn = document.getElementById('continue-btn');
+
+            opts[selectedOptIndex].classList.remove('selected');
+            
+            if(isCorrect) {
+                opts[selectedOptIndex].classList.add('correct');
+                sessionScore.correct++;
+                
+                feedbackArea.style.background = '#d7ffb8';
+                feedbackArea.style.border = '2px solid var(--duo-green)';
+                document.getElementById('feedback-title').innerText = "¡Excelente!";
+                document.getElementById('feedback-title').style.color = "var(--duo-green-dark)";
+                continueBtn.className = "btn btn-green";
+            } else {
+                opts[selectedOptIndex].classList.add('wrong');
+                sessionScore.wrong++;
+                sessionWrongQuestions.push(q); 
+
+                const correctIdx = q.opciones.findIndex(o => o.correcta);
+                if(correctIdx > -1) opts[correctIdx].classList.add('correct');
+
+                feedbackArea.style.background = '#ffdfdf';
+                feedbackArea.style.border = '2px solid var(--duo-red)';
+                document.getElementById('feedback-title').innerText = "Respuesta Incorrecta";
+                document.getElementById('feedback-title').style.color = "var(--duo-red-dark)";
+                continueBtn.className = "btn btn-red";
+            }
+
+            document.getElementById('check-btn').style.display = 'none';
+            feedbackArea.style.display = 'block';
+            document.getElementById('feedback-text').innerText = q.justificacion || "Sin justificación adicional.";
+        }
+
+        function nextQuestion() {
+            sessionIndex++;
+            loadQuizQuestion();
+        }
+
+        function finishSession() {
+            _tempRetryList = [...sessionWrongQuestions]; 
+            
+            document.getElementById('res-correct').innerText = sessionScore.correct;
+            document.getElementById('res-wrong').innerText = sessionScore.wrong;
+            
+            const btnRetry = document.getElementById('btn-retry-wrong');
+            const msg = document.getElementById('res-msg');
+
+            if(sessionScore.wrong > 0) {
+                btnRetry.style.display = 'inline-block';
+                btnRetry.innerText = `🔄 Repetir ${sessionScore.wrong} Errores`;
+                msg.innerText = "¡Sigue practicando para mejorar!";
+            } else {
+                btnRetry.style.display = 'none';
+                msg.innerText = "¡Perfecto! No tuviste errores.";
+            }
+
+            setView('results');
+        }
+
+
+        // --- ADMIN & IMPORT/EXPORT ---
+        const optsContainer = document.getElementById('options-inputs');
+        for(let i=0; i<4; i++) {
+            optsContainer.innerHTML += `
+                <div style="display:flex; gap:10px; align-items:center; margin-bottom:5px;">
+                    <input type="radio" name="correct-radio" id="rad-${i}" ${i===0?'checked':''}>
+                    <input type="text" id="opt-${i}" placeholder="Opción ${i+1}" style="margin-bottom:0;">
+                </div>
+            `;
+        }
+
+        function loadAdminList() {
+            const list = document.getElementById('questions-list');
+            list.innerHTML = '';
+            document.getElementById('total-count').innerText = `${questions.length}`;
+
+            questions.forEach((q, idx) => {
+                const item = document.createElement('div');
+                item.className = 'q-item';
+                let topicHtml = q.tema ? `<span class="topic-tag">${q.tema}</span>` : '';
+                item.innerHTML = `
+                    <div style="flex:1; padding-right:10px;">
+                        <div style="margin-bottom: 2px;">${topicHtml} <span style="font-weight:800; font-size:12px;">#${idx+1}</span></div>
+                        <div style="font-size:14px; color:#555;">${q.pregunta.substring(0, 60)}...</div>
+                    </div>
+                    <div class="q-actions">
+                        <button onclick="editQuestion(${idx})" title="Editar">✏️</button>
+                        <button onclick="deleteQuestion(${idx})" title="Borrar" style="color:var(--duo-red);">🗑️</button>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function exportBackup() {
+            const dataStr = JSON.stringify(questions, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `InfectoQuiz_Respaldo_${new Date().toISOString().slice(0,10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function triggerImport() {
+            document.getElementById('import-file').click();
+        }
+
+        function importBackup(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (!Array.isArray(importedData)) throw new Error("El archivo no es válido (no es una lista de preguntas).");
+                    
+                    // Preguntar estrategia de importación
+                    if(confirm(`Se encontraron ${importedData.length} preguntas.\n\n[Aceptar] = BORRAR TODO y reemplazar con esto.\n[Cancelar] = AGREGAR al final (combinar).`)) {
+                         questions = importedData;
+                    } else {
+                         questions = [...questions, ...importedData];
+                    }
+                    
+                    saveToLocal();
+                    loadAdminList();
+                    alert("¡Importación exitosa! Tu banco está actualizado.");
+                } catch (err) {
+                    alert("Error al leer el archivo: " + err.message);
+                }
+            };
+            reader.readAsText(file);
+            input.value = ''; // Reset input
+        }
+
+        function saveManual() {
+            const topic = document.getElementById('inp-topic').value;
+            const qText = document.getElementById('inp-question').value;
+            const just = document.getElementById('inp-justification').value;
+            const idx = document.getElementById('edit-index').value;
+            
+            if(!qText) return alert("¡Falta la pregunta!");
+
+            const newOpts = [];
+            for(let i=0; i<4; i++) {
+                newOpts.push({
+                    texto: document.getElementById('opt-'+i).value || `Opción ${i+1}`,
+                    correcta: document.getElementById('rad-'+i).checked
+                });
+            }
+
+            const newQ = { 
+                tema: topic || "General",
+                pregunta: qText, 
+                opciones: newOpts, 
+                justificacion: just 
+            };
+
+            if(idx !== "") {
+                questions[idx] = newQ;
+            } else {
+                questions.push(newQ);
+            }
+
+            saveToLocal();
+            clearForm();
+            loadAdminList();
+            alert("✅ Pregunta guardada");
+        }
+
+        function editQuestion(idx) {
+            const q = questions[idx];
+            document.getElementById('edit-index').value = idx;
+            document.getElementById('inp-topic').value = q.tema || "";
+            document.getElementById('inp-question').value = q.pregunta;
+            document.getElementById('inp-justification').value = q.justificacion;
+            q.opciones.forEach((o, i) => {
+                document.getElementById('opt-'+i).value = o.texto;
+                document.getElementById('rad-'+i).checked = o.correcta;
+            });
+            document.querySelector('.view.active').scrollTop = 0;
+        }
+
+        function deleteQuestion(idx) {
+            if(confirm("¿Borrar pregunta?")) {
+                questions.splice(idx, 1);
+                saveToLocal();
+                loadAdminList();
+            }
+        }
+
+        function clearForm() {
+            document.getElementById('edit-index').value = "";
+            document.getElementById('inp-topic').value = "";
+            document.getElementById('inp-question').value = "";
+            document.getElementById('inp-justification').value = "";
+            for(let i=0; i<4; i++) {
+                document.getElementById('opt-'+i).value = "";
+                document.getElementById('rad-'+i).checked = i===0;
+            }
+        }
+
+        function resetAllData() {
+            if(confirm("ESTO BORRARÁ TODAS LAS PREGUNTAS. ¿Estás seguro?")) {
+                questions = [];
+                saveToLocal();
+                loadAdminList();
+            }
+        }
+
+        function saveToLocal() {
+            localStorage.setItem('infectoDB_v5', JSON.stringify(questions));
+        }
+
+        // --- IA ENGINE ---
+        document.getElementById('ai-btn').addEventListener('click', generateWithAI);
+
+        function logStatus(msg, type="info") {
+            const log = document.getElementById('status-log');
+            log.style.display = 'block';
+            log.innerHTML += `> ${msg}\n`;
+            log.scrollTop = log.scrollHeight;
+            if(type === 'error') log.style.color = '#d32f2f';
+            if(type === 'info') document.getElementById('loader-text').innerText = msg;
+        }
+
+        async function getBestAvailableModel(apiKey) {
+            try {
+                logStatus("Consultando modelos disponibles en tu cuenta...");
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+                if (!response.ok) {
+                   if(response.status === 400) throw new Error("API Key inválida.");
+                   throw new Error("No se pudo obtener lista de modelos.");
+                }
+                const data = await response.json();
+                if (!data.models) return null;
+                const validModels = data.models.filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes("generateContent"));
+                let bestModel = validModels.find(m => m.name.includes("flash"));
+                if (!bestModel) bestModel = validModels.find(m => m.name.includes("pro"));
+                if (!bestModel && validModels.length > 0) bestModel = validModels[0];
+                return bestModel ? bestModel.name.replace("models/", "") : null;
+            } catch (e) {
+                logStatus(`Error auto-descubrimiento: ${e.message}`, "error");
+                return null;
+            }
+        }
+
+        async function fetchFromModel(modelId, apiKey, payload) {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) {
+                if(response.status === 404) throw new Error("MODEL_NOT_FOUND");
+                const txt = await response.text();
+                throw new Error(`API Error (${response.status}): ${txt}`);
+            }
+            return response.json();
+        }
+
+        async function generateWithAI() {
+            const apiKey = document.getElementById('api-key').value.trim();
+            const text = document.getElementById('ai-prompt').value.trim();
+            const btn = document.getElementById('ai-btn');
+            const log = document.getElementById('status-log');
+            
+            log.innerHTML = ""; log.style.color = "#666";
+
+            if(!apiKey) return logStatus("❌ Falta API Key", "error");
+            if(!text) return logStatus("❌ Falta texto", "error");
+
+            document.getElementById('loader').style.display = 'flex';
+            document.getElementById('ai-success-msg').style.display = 'none';
+            btn.disabled = true;
+            
+            const systemPrompt = `Eres un experto profesor de medicina. 
+            Analiza el texto y genera preguntas de opción múltiple (Multiple Choice).
+            FORMATO JSON OBLIGATORIO:
+            [
+               {
+                 "tema": "Tema Específico (Ej: VIH, TBC)",
+                 "pregunta": "texto pregunta",
+                 "opciones": [{"texto": "A", "correcta": false}, {"texto": "B", "correcta": true}],
+                 "justificacion": "feedback corto"
+               }
+            ]
+            Texto: "${text}"`;
+
+            const payload = { contents: [{ parts: [{ text: systemPrompt }] }] };
+
+            try {
+                let selectedModel = await getBestAvailableModel(apiKey);
+                if (!selectedModel) {
+                    logStatus("⚠️ Auto-descubrimiento falló. Probando modelos estándar...");
+                    const backups = ["gemini-1.5-flash", "gemini-1.5-flash-001", "gemini-pro"];
+                    let data = null;
+                    for (const m of backups) {
+                        try {
+                            logStatus(`Probando: ${m}...`);
+                            data = await fetchFromModel(m, apiKey, payload);
+                            selectedModel = m;
+                            break;
+                        } catch (e) {
+                            if(e.message === "MODEL_NOT_FOUND") continue;
+                            else throw e;
+                        }
+                    }
+                    if(!data) throw new Error("Ningún modelo respondió.");
+                    processResponse(data);
+                } else {
+                    logStatus(`🤖 Usando modelo: ${selectedModel}`);
+                    const data = await fetchFromModel(selectedModel, apiKey, payload);
+                    processResponse(data);
+                }
+            } catch (err) {
+                document.getElementById('loader').style.display = 'none';
+                btn.disabled = false;
+                console.error(err);
+                logStatus(`❌ Error: ${err.message}`, "error");
+                alert("Error. Revisa el log.");
+            }
+        }
+
+        function processResponse(data) {
+            logStatus("Procesando JSON...");
+            if(!data.candidates || !data.candidates[0].content) throw new Error("Sin contenido IA.");
+            let raw = data.candidates[0].content.parts[0].text;
+            
+            // INTENTO DE LIMPIEZA ROBUSTA
+            const firstBracket = raw.indexOf('[');
+            const lastBracket = raw.lastIndexOf(']');
+            
+            if (firstBracket !== -1 && lastBracket !== -1) {
+                raw = raw.substring(firstBracket, lastBracket + 1);
+            } else {
+                raw = raw.replace(/```json/g, '').replace(/```/g, '').trim();
+            }
+            
+            let newQ;
+            try { 
+                newQ = JSON.parse(raw); 
+            } catch(e) { 
+                console.error("JSON Error. Raw text:", raw);
+                throw new Error("La IA no devolvió un JSON válido. Revisa la consola (F12) para ver qué llegó."); 
+            }
+            
+            if(!Array.isArray(newQ)) {
+                if(typeof newQ === 'object') newQ = [newQ];
+                else throw new Error("Formato incorrecto (no es lista de preguntas).");
+            }
+
+            questions = [...questions, ...newQ];
+            saveToLocal();
+
+            document.getElementById('ai-prompt').value = '';
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('ai-btn').disabled = false;
+            document.getElementById('ai-btn').style.display = 'none';
+            document.getElementById('ai-success-msg').style.display = 'block';
+            logStatus(`✅ ¡Listo! ${newQ.length} preguntas.`, "info");
+        }
+
+        // Init
+        setView('home');
+    </script>
+</body>
+</html>
+
